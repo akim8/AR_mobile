@@ -44,19 +44,14 @@ function fetchPlaces (userCoords) {
 // decide what bus stop nodes to display
 function parsePlaces (userCoords, busStops) {
   var maxDistance = 0.25 // how close bus stop needs to be to user to be displayed
-  var scaleFactor = 1 // how big the sign is
-  var scaleDecayFactor = 0.07 // how much to shrink the sign by distance
-  var minScale = 15
-  var maxScale = 25
+  var scaleFactor = 1 // how big the sign is in relation to distance
 
   // for each bus stop, if it is within the maxDistance, create a node for it
   busStops.forEach(function (element) {
     var distance = distanceBetweenCoords(element.lat, element.lng, userCoords.latitude, userCoords.longitude)
 
     if (distance <= maxDistance) {
-      var scale = scaleFactor * ((maxDistance - distance) / (maxDistance * scaleDecayFactor))
-      scale = Math.min(maxScale, scale)
-      scale = Math.max(minScale, scale)
+      scale = scaleFactor
 
       createBusStopNode(element, scale, userCoords)
 
@@ -90,7 +85,7 @@ function createBusStopNode (element, scale, userCoords) {
   sign.setAttribute('src', 'images/bus-stop-sign.png')
   sign.setAttribute('position', `0 ${imageHeight * scale / 2} 0`)
   sign.setAttribute('scale', `${imageWidth * scale} ${imageHeight * scale}`)
-  sign.setAttribute('opacity', 0.5) //! set to 1 for proper opacity
+  sign.setAttribute('opacity', 1)
   sign.setAttribute('look-at', '#user')
   node.appendChild(sign)
 
@@ -111,34 +106,44 @@ function createBusStopNode (element, scale, userCoords) {
 
   // create backdrop for labels
   const signLabelBackdrop = document.createElement('a-plane')
-  signLabelBackdrop.setAttribute('material', 'color: #000; opacity: 0.2;') //! set opacity to 0.7 for proper color
-  signLabelBackdrop.setAttribute('width', '20')
-  signLabelBackdrop.setAttribute('height', '8')
-  signLabelBackdrop.setAttribute('position', '0 0.75 0')
-  signLabelBackdrop.setAttribute('scale', `${1 / scale} ${1 / scale} ${1 / scale}`)
+  signLabelBackdrop.setAttribute('material', 'color: #000; opacity: 0.7;')
+  signLabelBackdrop.setAttribute('width', '2')
+  signLabelBackdrop.setAttribute('height', '0.8')
+  signLabelBackdrop.setAttribute('position', '0 1 0')
+  signLabelBackdrop.setAttribute('scale', '1 1 1')
   sign.appendChild(signLabelBackdrop)
 
   // create distance label
   var distanceMeters = distanceBetweenCoords(element.lat, element.lng, userCoords.latitude, userCoords.longitude, 'meters').toFixed(1)
   const signDistanceLabel = document.createElement('a-text')
   signDistanceLabel.setAttribute('value', `${distanceMeters} m`)
-  signDistanceLabel.setAttribute('width', 80)
+  signDistanceLabel.setAttribute('width', 8)
   signDistanceLabel.setAttribute('align', 'center')
-  signDistanceLabel.setAttribute('position', '0 1.7 0')
+  signDistanceLabel.setAttribute('position', '0 0.17 1')
   signLabelBackdrop.appendChild(signDistanceLabel)
 
   // create walking time estimate label
   const signTimeLabel = document.createElement('a-text')
   signTimeLabel.setAttribute('value', `${timeToWalk(distanceMeters).toFixed(1)} min`)
-  signTimeLabel.setAttribute('width', 80)
+  signTimeLabel.setAttribute('width', 8)
   signTimeLabel.setAttribute('align', 'center')
-  signTimeLabel.setAttribute('position', '0 -1.7 0')
+  signTimeLabel.setAttribute('position', '0 -0.17 1')
   signLabelBackdrop.appendChild(signTimeLabel)
 
   // add touch event
   // todo
 
-  return node
+  // set world position based on coords
+  const config = { attributes: true };
+  const callback = function(mutationsList, observer) {
+    for(let mutation of mutationsList) {
+      if (mutation.attributeName == "position") {
+        node.object3D.position.normalize();
+      }
+    }
+  }
+  const observer = new MutationObserver(callback);
+  observer.observe(node, config);
 }
 
 function updateSignLines () {
